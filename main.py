@@ -1,16 +1,31 @@
 """
-Sistema POS (Punto de Venta) en Python.
-Proyecto integrador — Curso de Programación en Python (Nivel Básico-Intermedio).
+main.py — Punto de entrada del Sistema POS
+==========================================
+Este es el archivo principal del Sistema POS (Punto de Venta).
+Aquí se define el menú principal, los submenús y el flujo general
+del programa. Para ejecutar el sistema, corre este archivo:
 
-Módulos:
-  - utils.py     : funciones auxiliares y validaciones
-  - productos.py : gestión del catálogo
-  - ventas.py    : carrito de compra y cálculos
-  - ticket.py    : generación de tickets e historial
-  - main.py      : menú principal y flujo del programa (este archivo)
+    python main.py
 
-Cómo ejecutar:
-  python main.py
+Arquitectura del proyecto:
+    utils.py     → funciones auxiliares y validaciones de entrada
+    productos.py → gestión del catálogo (agregar, buscar, mostrar)
+    ventas.py    → carrito de compra y cálculo de totales
+    ticket.py    → generación de tickets e historial de ventas
+    main.py      → menús, navegación y flujo del programa (este archivo)
+
+Carpeta de datos (se crea automáticamente):
+    datos/catalogo.json          → productos del catálogo
+    datos/historial_ventas.json  → registro de ventas completadas
+
+Flujo general del programa:
+    main()
+    ├── proceso_venta()   → nueva venta completa
+    ├── mostrar_catalogo()
+    ├── agregar_producto()
+    └── menu_historial()
+        ├── mostrar_historial()
+        └── mostrar_detalle_venta()
 """
 
 from utils import limpiar_pantalla, pausar, separador, pedir_entero
@@ -44,6 +59,20 @@ from ticket import (
 # ---------------------------------------------------------------------------
 
 def mostrar_menu_principal():
+    """
+    Imprime el menú principal del sistema y solicita una opción al usuario.
+
+    Muestra las cinco opciones disponibles:
+        1. Nueva venta
+        2. Ver catálogo de productos
+        3. Agregar producto al catálogo
+        4. Historial de ventas
+        5. Salir
+
+    Retorna:
+        str: La opción ingresada por el usuario como cadena de texto.
+             (Se usa str para comparar con "1", "2", etc.)
+    """
     separador("=")
     print("        SISTEMA POS — MENÚ PRINCIPAL")
     separador("=")
@@ -57,6 +86,19 @@ def mostrar_menu_principal():
 
 
 def mostrar_menu_venta():
+    """
+    Imprime el menú de opciones durante una venta activa y solicita una opción.
+
+    Muestra las cinco acciones disponibles dentro de una venta:
+        1. Agregar producto al carrito
+        2. Eliminar producto del carrito
+        3. Ver carrito
+        4. Finalizar venta (genera el ticket)
+        5. Cancelar venta
+
+    Retorna:
+        str: La opción ingresada por el usuario como cadena de texto.
+    """
     separador("-")
     print("  MENÚ DE VENTA")
     separador("-")
@@ -70,6 +112,17 @@ def mostrar_menu_venta():
 
 
 def mostrar_menu_historial():
+    """
+    Imprime el submenú de historial de ventas y solicita una opción.
+
+    Muestra tres opciones:
+        1. Ver resumen de todas las ventas
+        2. Ver detalle completo de una venta específica
+        3. Regresar al menú principal
+
+    Retorna:
+        str: La opción ingresada por el usuario como cadena de texto.
+    """
     separador("-")
     print("  HISTORIAL DE VENTAS")
     separador("-")
@@ -86,10 +139,32 @@ def mostrar_menu_historial():
 
 def proceso_venta(catalogo, numero_venta):
     """
-    Ejecuta el flujo completo de una venta:
-    agregar productos, revisar carrito, confirmar y generar ticket.
+    Ejecuta el ciclo completo de una venta desde el carrito hasta el ticket.
 
-    Devuelve True si la venta se completó, False si se canceló.
+    Mantiene al usuario en un bucle donde puede agregar o eliminar
+    productos, revisar el carrito y finalmente confirmar o cancelar la venta.
+
+    Al confirmar:
+        - Genera e imprime el ticket.
+        - Descuenta el stock de cada producto vendido.
+        - Guarda la venta en el historial.
+
+    Al cancelar:
+        - Vacía el carrito sin registrar ningún movimiento.
+
+    Parámetros:
+        catalogo     (dict): Diccionario del catálogo de productos disponibles.
+        numero_venta (int) : Número correlativo asignado a esta venta.
+
+    Retorna:
+        bool: True si la venta se completó y confirmó exitosamente.
+              False si el usuario canceló la venta.
+
+    Ejemplo:
+        >>> resultado = proceso_venta(catalogo, 1)
+        # El usuario navega el menú de venta...
+        >>> print(resultado)
+        True  # si confirmó, False si canceló
     """
     carrito = iniciar_carrito()
 
@@ -157,11 +232,17 @@ def proceso_venta(catalogo, numero_venta):
 
 
 # ---------------------------------------------------------------------------
-# Menú de historial
+# Submenú de historial
 # ---------------------------------------------------------------------------
 
 def menu_historial():
-    """Submenú para consultar el historial de ventas."""
+    """
+    Muestra el submenú de historial y gestiona la navegación dentro de él.
+
+    Mantiene al usuario en un bucle hasta que elija regresar
+    al menú principal. Desde aquí puede ver el resumen de todas
+    las ventas o el detalle de una venta específica.
+    """
     while True:
         limpiar_pantalla()
         opcion = mostrar_menu_historial()
@@ -177,7 +258,7 @@ def menu_historial():
             pausar()
 
         elif opcion == "3":
-            break
+            break  # Regresar al menú principal
 
         else:
             print("\n  Opción no válida.")
@@ -189,9 +270,17 @@ def menu_historial():
 # ---------------------------------------------------------------------------
 
 def main():
-    """Función principal: carga el catálogo y ejecuta el menú principal."""
-    catalogo      = cargar_catalogo()
-    numero_venta  = obtener_numero_venta()
+    """
+    Función principal del Sistema POS.
+
+    Carga el catálogo de productos y el número de la próxima venta
+    al iniciar. Luego entra en el bucle del menú principal donde
+    el usuario navega entre las distintas funciones del sistema.
+
+    El programa termina cuando el usuario selecciona la opción 5 (Salir).
+    """
+    catalogo     = cargar_catalogo()
+    numero_venta = obtener_numero_venta()
 
     while True:
         limpiar_pantalla()
@@ -201,7 +290,7 @@ def main():
         if opcion == "1":
             venta_completada = proceso_venta(catalogo, numero_venta)
             if venta_completada:
-                numero_venta += 1
+                numero_venta += 1  # Incrementar solo si la venta se confirmó
 
         # --- Ver catálogo ---
         elif opcion == "2":
@@ -215,7 +304,7 @@ def main():
             agregar_producto(catalogo)
             pausar()
 
-        # --- Historial ---
+        # --- Historial de ventas ---
         elif opcion == "4":
             menu_historial()
 
@@ -230,5 +319,7 @@ def main():
             pausar()
 
 
+# Este bloque asegura que main() solo se ejecute cuando se corre
+# este archivo directamente, no cuando se importa desde otro módulo.
 if __name__ == "__main__":
     main()

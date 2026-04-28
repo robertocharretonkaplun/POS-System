@@ -1,7 +1,31 @@
 """
-Módulo de tickets e historial de ventas del Sistema POS.
-Genera el ticket en pantalla, guarda cada venta en un
-archivo JSON y permite consultar el historial.
+ticket.py — Generación de tickets e historial de ventas
+========================================================
+Este módulo se encarga de dos responsabilidades:
+
+1. Generar el ticket de venta: imprime en pantalla un recibo
+   con el detalle de los productos, subtotal, IVA y total.
+
+2. Gestionar el historial: guarda cada venta completada en un
+   archivo JSON y permite consultarlas posteriormente.
+
+Cada venta guardada en el historial tiene esta estructura:
+    {
+        "numero"   : 1,
+        "fecha"    : "27/04/2026 10:35:22",
+        "productos": [ {...}, {...} ],
+        "subtotal" : 58.00,
+        "iva"      : 9.28,
+        "total"    : 67.28
+    }
+
+Funciones disponibles:
+    - cargar_historial      : lee el historial desde el archivo JSON
+    - guardar_venta         : agrega una venta al historial y lo guarda
+    - obtener_numero_venta  : determina el número correlativo de la siguiente venta
+    - generar_ticket        : imprime el ticket de venta en pantalla
+    - mostrar_historial     : muestra un resumen de todas las ventas
+    - mostrar_detalle_venta : muestra el detalle completo de una venta
 """
 
 import json
@@ -12,6 +36,7 @@ from utils import separador
 from ventas import calcular_totales
 
 
+# Ruta del archivo donde se guarda el historial de ventas
 ARCHIVO_HISTORIAL = os.path.join("datos", "historial_ventas.json")
 
 
@@ -20,7 +45,21 @@ ARCHIVO_HISTORIAL = os.path.join("datos", "historial_ventas.json")
 # ---------------------------------------------------------------------------
 
 def cargar_historial():
-    """Carga la lista de ventas desde el archivo JSON."""
+    """
+    Carga la lista de ventas registradas desde el archivo JSON.
+
+    Si el archivo no existe (no se ha completado ninguna venta aún),
+    devuelve una lista vacía en lugar de producir un error.
+
+    Retorna:
+        list: Lista de diccionarios, donde cada elemento es una venta.
+              Devuelve una lista vacía si no hay ventas registradas.
+
+    Ejemplo:
+        >>> historial = cargar_historial()
+        >>> print(len(historial))
+        3   # si hay 3 ventas guardadas
+    """
     if os.path.exists(ARCHIVO_HISTORIAL):
         with open(ARCHIVO_HISTORIAL, "r", encoding="utf-8") as archivo:
             return json.load(archivo)
@@ -28,14 +67,28 @@ def cargar_historial():
 
 
 def guardar_venta(carrito, numero_venta):
-    """Agrega la venta actual al historial y la escribe en disco."""
+    """
+    Registra la venta actual en el historial y guarda el archivo JSON.
+
+    Construye un diccionario con todos los datos de la venta
+    (número, fecha, productos, montos) y lo agrega al historial existente.
+    Crea la carpeta 'datos/' automáticamente si no existe.
+
+    Parámetros:
+        carrito      (list): Lista con los productos de la venta a guardar.
+        numero_venta (int) : Número correlativo que identifica esta venta.
+
+    Ejemplo:
+        >>> guardar_venta(carrito, 1)
+        # Se agrega la venta al archivo datos/historial_ventas.json
+    """
     subtotal, iva, total = calcular_totales(carrito)
     fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     venta = {
         "numero":    numero_venta,
         "fecha":     fecha_hora,
-        "productos": [item.copy() for item in carrito],
+        "productos": [item.copy() for item in carrito],  # copia para no alterar el original
         "subtotal":  round(subtotal, 2),
         "iva":       round(iva, 2),
         "total":     round(total, 2),
@@ -51,8 +104,22 @@ def guardar_venta(carrito, numero_venta):
 
 def obtener_numero_venta():
     """
-    Determina el número de la próxima venta basándose en el historial.
-    Si no hay ventas anteriores, comienza desde 1.
+    Determina el número correlativo de la próxima venta.
+
+    Lee el historial y toma el número de la última venta registrada,
+    luego le suma 1. Si no hay ventas previas, devuelve 1.
+
+    Este mecanismo permite que el contador de ventas persista
+    entre ejecuciones del programa.
+
+    Retorna:
+        int: Número que le corresponde a la siguiente venta.
+
+    Ejemplo:
+        >>> # Si la última venta fue la #5
+        >>> numero = obtener_numero_venta()
+        >>> print(numero)
+        6
     """
     historial = cargar_historial()
     if historial:
@@ -61,13 +128,42 @@ def obtener_numero_venta():
 
 
 # ---------------------------------------------------------------------------
-# Ticket
+# Ticket en pantalla
 # ---------------------------------------------------------------------------
 
 def generar_ticket(carrito, numero_venta):
     """
-    Imprime el ticket de venta en pantalla.
-    Devuelve la tupla (subtotal, iva, total).
+    Imprime el ticket de venta en pantalla con formato de recibo.
+
+    Muestra el número de venta, la fecha y hora actuales, el detalle
+    de cada producto (cantidad, precio unitario y subtotal), y al final
+    el subtotal, el IVA (16%) y el total a pagar.
+
+    Parámetros:
+        carrito      (list): Lista con los productos de la venta.
+        numero_venta (int) : Número correlativo de esta venta.
+
+    Retorna:
+        tuple: Una tupla con tres flotantes: (subtotal, iva, total).
+               Se retorna por si se necesita usar los montos después
+               de mostrar el ticket.
+
+    Ejemplo de salida:
+        =======================================================
+                 SISTEMA POS — TICKET DE VENTA
+        =======================================================
+          Venta  : #0001
+          Fecha  : 27/04/2026  10:35:22
+        -------------------------------------------------------
+          Producto                   Cant    P.Unit   Subtotal
+        -------------------------------------------------------
+          Coca-Cola 600ml               2    $20.00     $40.00
+        -------------------------------------------------------
+          Subtotal:                              $40.00
+          IVA (16%):                              $6.40
+        -------------------------------------------------------
+          TOTAL A PAGAR:                         $46.40
+        =======================================================
     """
     subtotal, iva, total = calcular_totales(carrito)
     fecha_hora = datetime.now().strftime("%d/%m/%Y  %H:%M:%S")
@@ -102,7 +198,21 @@ def generar_ticket(carrito, numero_venta):
 # ---------------------------------------------------------------------------
 
 def mostrar_historial():
-    """Imprime un resumen de todas las ventas registradas."""
+    """
+    Imprime en pantalla un resumen de todas las ventas registradas.
+
+    Muestra una tabla con: número de venta, fecha, cantidad total
+    de productos vendidos y el monto total cobrado.
+    Si no hay ventas, muestra un mensaje informativo.
+
+    Ejemplo de salida:
+        =======================================================
+                   HISTORIAL DE VENTAS
+        =======================================================
+          #      Fecha                Productos        Total
+        -------------------------------------------------------
+          #1     27/04/2026 10:35:22         3       $67.28
+    """
     historial = cargar_historial()
 
     separador("=")
@@ -125,7 +235,31 @@ def mostrar_historial():
 
 
 def mostrar_detalle_venta():
-    """Permite al usuario ver el detalle completo de una venta por número."""
+    """
+    Muestra el detalle completo de una venta seleccionada por el usuario.
+
+    Primero imprime el historial general para que el usuario identifique
+    el número de venta que desea consultar. Luego busca esa venta y
+    muestra todos sus datos: productos, cantidades, precios y totales.
+
+    Si el número ingresado no corresponde a ninguna venta, muestra
+    un mensaje de error. Ingresar 0 cancela la operación.
+
+    Ejemplo de salida:
+        =======================================================
+          DETALLE — VENTA #0001
+        =======================================================
+          Fecha: 27/04/2026 10:35:22
+        -------------------------------------------------------
+          Coca-Cola 600ml          2   $20.00     $40.00
+          Sabritas Original        1   $18.00     $18.00
+        -------------------------------------------------------
+          Subtotal:                              $58.00
+          IVA (16%):                              $9.28
+        -------------------------------------------------------
+          TOTAL:                                 $67.28
+        =======================================================
+    """
     historial = cargar_historial()
 
     if not historial:
@@ -144,6 +278,7 @@ def mostrar_detalle_venta():
         print("\n  Entrada no válida.")
         return
 
+    # Buscar la venta cuyo número coincida con el ingresado
     venta = next((v for v in historial if v["numero"] == numero), None)
 
     if venta is None:
